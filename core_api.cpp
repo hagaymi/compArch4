@@ -4,6 +4,8 @@
 #include "sim_api.h"
 
 #include <stdio.h>
+#include <vector>
+using std::vector;
 
 class thread{
 public:
@@ -48,4 +50,36 @@ void CORE_BlockedMT_CTX(tcontext* context, int threadid) {
 
 void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
 }
+//
+//class roundRobin{
+//private:
+//    int threadNum;
+//
+//public:
+//    roundRobin(int threadNum): threadNum(threadNum){};
+//    int getNextThread;
+//};
 
+///////////////////////////////////////////////////////////////////////////////////////////
+// CPU API
+///////////////////////////////////////////////////////////////////////////////////////////
+/*
+ * virtual class for CPUs
+ * */
+class core{
+protected:
+    int cycle;
+    int instructionCount;
+    int loadLatency;
+    int storeLatency;
+    vector<thread> threadVec;
+public:
+
+};
+
+class blockedMT: public core{
+
+};
+class fineGrainedMT: public core{
+
+};
