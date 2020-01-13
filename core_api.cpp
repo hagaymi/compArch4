@@ -14,16 +14,21 @@ using std::vector;
 class thread{
 public:
     int id;
-    int isReady;
-    tcontext regsTable;
+    int loadPenalty;
+    int storePenalty;
+    int readyCycle;
+    tcontext regsTable{};
     uint32_t pc;
-    Instruction instDest;
-    thread(int id, uint32_t init_pc):id(id),isReady(0), pc(init_pc){} //TODO: make sure regsTable doesn't need initialization
+    Instruction instDest{};
+    thread(int id, int loadPenalty, int storePenalty, uint32_t init_pc):id(id), loadPenalty(loadPenalty), storePenalty(storePenalty),readyCycle(0), pc(init_pc){} //TODO: make sure regsTable doesn't need initialization
 
+    bool isReady(int currCycle){
+        return currCycle > readyCycle;
+    }
     // look what is the next instruction and call the relevant function and update the return value in memory update the pc
     threadState execute(int currCycle){
         int opc;
-        SIM_MemInstRead(pc,  instDest, id);
+        SIM_MemInstRead(pc,  &instDest, id);
         pc = pc + 4; //TODO: make sure the pc is the correct way
         opc = instDest.opcode;
         switch (opc) {
@@ -39,9 +44,11 @@ public:
                 break;
             case CMD_LOAD:
                 load(instDest.dst_index, instDest.src1_index, instDest.src2_index_imm,instDest.isSrc2Imm);
+                readyCycle = currCycle + loadPenalty;
                 break;
             case CMD_STORE:
                 store(instDest.dst_index, instDest.src1_index, instDest.src2_index_imm,instDest.isSrc2Imm);
+                readyCycle = currCycle + storePenalty;
                 break;
             case CMD_HALT:
                 return FINISHED;
