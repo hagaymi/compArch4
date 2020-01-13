@@ -30,11 +30,80 @@ public:
 };
 
 
+///////////////////////////////////////////////////////////////////////////////////////////
+// CPU API
+///////////////////////////////////////////////////////////////////////////////////////////
+/*
+ * virtual class for CPUs
+ * */
+class core{
+protected:
+    int cycle;
+    int instructionCount;
 
+    int loadLatency;
+    int storeLatency;
+    int threadsNum;
+    int activeThreadsNum;
+    int switchCycles;
+    bool finished;
+    vector<thread> threadVec;
+
+public:
+    core();
+    bool isFinished();
+    void execute(int curCycle);
+
+};
+
+class blockedMT: public core{
+
+};
+class fineGrainedMT: public core{
+
+};
+
+//#####################################################################################
+// CORE private functions
+//#####################################################################################
+blockedMT * pBlockedMT;
+fineGrainedMT * pFineGrainedMT;
+
+
+//####################################################################################################
+//  CORE API (for main)
+//####################################################################################################
 void CORE_BlockedMT() {
+    // get simulator params
+    int loadLatency = SIM_GetLoadLat();
+    int storeLatency = SIM_GetStoreLat();
+    int threadsNum = SIM_GetThreadsNum();
+    int switchCycles = SIM_GetSwitchCycles();
+    pBlockedMT = new blockedMT(); // TODO: create c'tor
+    int cycle = 0;
+    while(!pBlockedMT->isFinished()){
+        pBlockedMT->execute(cycle);
+        cycle++; // end of cycle
+    }
+
+
 }
 
 void CORE_FinegrainedMT() {
+    // get simulator params
+    int loadLatency = SIM_GetLoadLat();
+    int storeLatency = SIM_GetStoreLat();
+    int threadsNum = SIM_GetThreadsNum();
+    int switchCycles = SIM_GetSwitchCycles();
+    pFineGrainedMT = new fineGrainedMT(); // TODO: create c'tor
+    int cycle = 0;
+    while(!pFineGrainedMT->isFinished()){
+        pFineGrainedMT->execute(cycle);
+        cycle++; // end of cycle
+    }
+
+
+
 }
 
 double CORE_BlockedMT_CPI(){
@@ -50,6 +119,8 @@ void CORE_BlockedMT_CTX(tcontext* context, int threadid) {
 
 void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
 }
+
+
 //
 //class roundRobin{
 //private:
@@ -59,27 +130,3 @@ void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
 //    roundRobin(int threadNum): threadNum(threadNum){};
 //    int getNextThread;
 //};
-
-///////////////////////////////////////////////////////////////////////////////////////////
-// CPU API
-///////////////////////////////////////////////////////////////////////////////////////////
-/*
- * virtual class for CPUs
- * */
-class core{
-protected:
-    int cycle;
-    int instructionCount;
-    int loadLatency;
-    int storeLatency;
-    vector<thread> threadVec;
-public:
-
-};
-
-class blockedMT: public core{
-
-};
-class fineGrainedMT: public core{
-
-};
