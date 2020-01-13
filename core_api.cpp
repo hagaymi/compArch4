@@ -101,28 +101,110 @@ public:
  * */
 class core{
 protected:
-    int cycle;
-    int instructionCount;
-
     int loadLatency;
     int storeLatency;
     int threadsNum;
-    int activeThreadsNum;
-    int switchCycles;
-    bool finished;
+    int switchCyclesPenalty;
+
+    int cycle;
+    int cpuReadyCycle; // next possible cycle to run (if cpu penalty)
+    int instructionCount;
+    int curThread; // current running thread. when changed - have to wait penalty
+    //int activeThreadsNum;
+    int finishedThreads;
+    //bool finished;
     vector<thread> threadVec;
 
 public:
-    core();
-    bool isFinished();
-    void execute(int curCycle);
+    core(int loadLat, int storeLat, int switchPen, int threadsNum):
+    loadLatency(loadLat), storeLatency(storeLat), threadsNum(threadsNum),
+    switchCyclesPenalty(switchPen), cycle(0), cpuReadyCycle(0), instructionCount(0),
+    curThread(0), finishedThreads(0){
+        for(int i = 0; i < threadsNum; i++){
+            threadVec[i] = thread(i, 0);
+        }
+    }
+
+    bool isFinished(){
+        return finishedThreads == threadsNum;
+    }
+    virtual int getThreadTORun();
+    void execute(int curCycle){
+        cycle = curCycle;
+        if(cycle < cpuReadyCycle){
+            return; // have waiting penalty - not ready execute
+        }
+        int threadId = getThreadTORun();
+        if(threadId == -1){
+            //none of the threads can run - idle
+            return;
+        }
+        else if(threadId != curThread){
+            // context switch - penalty
+            if(switchCyclesPenalty > 0){
+                // surely can't run in this cycle
+                cpuReadyCycle = cycle + switchCyclesPenalty;
+                return;
+            }
+        }
+        else {
+            // current thread continue or no context switch penalty
+            int status = threadVec[threadId].execute(cycle); // TODO: check if need to get output (waiting penalty...)
+            if (status == FINISHED){
+                finishedThreads++;
+            }
+            instructionCount++; // TODO: can be replaced with counting all the instructions from memory
+        }
+    }
 
 };
 
 class blockedMT: public core{
 
+public:
+
+    // return which thread turn to run (Round Robin)
+    // blockedMT - switch on event
+    int getThreadTORun(){
+        if(threadVec[curThread].isReady){
+            //current running thread can still run
+            return curThread;
+        }
+        // find next ready thread
+        for(int i = 1; i < threadsNum; i++){
+            int tmpThreadID = (curThread + 1)% threadsNum ;
+            if(threadVec[tmpThreadID].isReady){
+                // do context switch
+                curThread = tmpThreadID;
+                return curThread;
+            }
+        }
+        // none of the threads can run - must Idle
+        return -1;
+    }
+
 };
 class fineGrainedMT: public core{
+
+public:
+
+    // return which thread turn to run (Round Robin)
+    // blockedMT - switch on event
+    int getThreadTORun(){
+
+        // find next ready thread
+        for(int i = 1; i <= threadsNum; i++){
+            int tmpThreadID = (curThread + 1)% threadsNum ;
+            if(threadVec[tmpThreadID].isReady){
+                // do context switch
+                curThread = tmpThreadID;
+                return curThread;
+            }
+        }
+        // none of the threads can run - must Idle
+        return -1;
+    }
+
 
 };
 
