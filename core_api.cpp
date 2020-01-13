@@ -18,12 +18,13 @@ public:
     tcontext regsTable;
     uint32_t pc;
     Instruction instDest;
-    thread(uint32_t init_pc):isReady(0), pc(init_pc){} //TODO: make sure regs doesn't need initialization
+    thread(int id, uint32_t init_pc):id(id),isReady(0), pc(init_pc){} //TODO: make sure regsTable doesn't need initialization
 
     // look what is the next instruction and call the relevant function and update the return value in memory update the pc
     threadState execute(int currCycle){
         int opc;
         SIM_MemInstRead(pc,  instDest, id);
+        pc = pc + 4; //TODO: make sure the pc is the correct way
         opc = instDest.opcode;
         switch (opc) {
             case CMD_NOP: // NOP
