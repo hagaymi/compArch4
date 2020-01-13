@@ -2,31 +2,86 @@
 
 #include "core_api.h"
 #include "sim_api.h"
-
+#include <stdlib.h>
 #include <stdio.h>
 #include <vector>
+#include <stdint.h>
+
+typedef enum {ADD, SUB} op;
+typedef enum {RUNNING, FINISHED} threadState;
 using std::vector;
 
 class thread{
 public:
+    int id;
     int isReady;
-    int reg[REGS_COUNT];
-    unsigned int pc;
-    thread():isReady(0){} //TODO: make sure regs doesn't need initialization
+    tcontext regsTable;
+    uint32_t pc;
+    Instruction instDest;
+    thread(uint32_t init_pc):isReady(0), pc(init_pc){} //TODO: make sure regs doesn't need initialization
 
-    // look what is the next instruction and call the relevant function
-    void execute(int currCycle);
+    // look what is the next instruction and call the relevant function and update the return value in memory update the pc
+    threadState execute(int currCycle){
+        int opc;
+        SIM_MemInstRead(pc,  instDest, id);
+        opc = instDest.opcode;
+        switch (opc) {
+            case CMD_NOP: // NOP
+                break;
+            case CMD_SUB:
+            case CMD_SUBI:
+                addOrSubOrI(instDest.dst_index, instDest.src1_index, instDest.src2_index_imm,SUB,instDest.isSrc2Imm);
+                break;
+            case CMD_ADD:
+            case CMD_ADDI:
+                addOrSubOrI(instDest.dst_index, instDest.src1_index, instDest.src2_index_imm,ADD,instDest.isSrc2Imm);
+                break;
+            case CMD_LOAD:
+                load(instDest.dst_index, instDest.src1_index, instDest.src2_index_imm,instDest.isSrc2Imm);
+                break;
+            case CMD_STORE:
+                store(instDest.dst_index, instDest.src1_index, instDest.src2_index_imm,instDest.isSrc2Imm);
+                break;
+            case CMD_HALT:
+                return FINISHED;
+        }
+        return RUNNING;
+    }
+
+    //choose imm or register val
+    int setSrc2(int regAddOrImm, bool isImm){
+        return (isImm)? regAddOrImm : regsTable.reg[regAddOrImm];
+    }
     //implement add and update regs
-    void add(int destReg, int src1Reg, int src2Reg);
-    //implement addi and update regs
-    void addi(int destReg, int src1Reg, int imm);
-    //TODO: implement sub and subi using same func as add or new func
+    void addOrSubOrI(int destReg, int src1Reg, int src2Reg, op operation, bool imm){
+        int val, src1, src2;
+        src1 = regsTable.reg[src1Reg];
+        src2 =  setSrc2(src2Reg, imm);
+
+        //choose ADD or SUB
+        if(operation == ADD)
+            val = src1 + src2;
+        else val = src1 -src2;
+        //update regs value
+        regsTable.reg[destReg] = val;
+    }
 
     //implement load and update regs
-    void load(int destReg, unsigned int address);
+    void load(int destReg, int src1Reg, int src2Reg, bool imm){
+        int val, src1, src2;
+        src1 = regsTable.reg[src1Reg];
+        src2 =  setSrc2(src2Reg, imm);
+        regsTable.reg[destReg] = regsTable.reg[src1 +  src2];
+    }
+
     //implement store
-    void store(unsigned int address, int src1Reg);
-    //TODO: make sure I don't need to implement hault
+    void store(int destReg, int src1Reg, int src2Reg, bool imm){
+        int val, src1, src2, dest;
+        src1 = regsTable.reg[src1Reg];
+        src2 =  setSrc2(src2Reg, imm);
+        dest = regsTable.reg[destReg];
+        regsTable.reg[dest+src2] = regsTable.reg[src1];
+    }
 };
 
 
