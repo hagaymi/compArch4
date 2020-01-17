@@ -121,7 +121,7 @@ public:
     switchCyclesPenalty(switchPen), cycle(0), cpuReadyCycle(0), instructionCount(0),
     curThread(0), finishedThreads(0){
         for(int i = 0; i < threadsNum; i++){
-            threadVec[i] = thread(i, 0);
+            threadVec[i] = thread(i, loadLatency, storeLatency, 0);
         }
     }
 
@@ -165,15 +165,18 @@ public:
 
     // return which thread turn to run (Round Robin)
     // blockedMT - switch on event
+    blockedMT(int loadLat, int storeLat, int switchPen, int threadsNum) : core(loadLat, storeLat, switchPen,
+                                                                               threadsNum) {}
+
     int getThreadTORun(){
-        if(threadVec[curThread].isReady){
+        if(threadVec[curThread].isReady(cycle)){
             //current running thread can still run
             return curThread;
         }
         // find next ready thread
         for(int i = 1; i < threadsNum; i++){
             int tmpThreadID = (curThread + 1)% threadsNum ;
-            if(threadVec[tmpThreadID].isReady){
+            if(threadVec[tmpThreadID].isReady(cycle)){ // TODO: need to replace in thread's method
                 // do context switch
                 curThread = tmpThreadID;
                 return curThread;
@@ -187,6 +190,8 @@ public:
 class fineGrainedMT: public core{
 
 public:
+    fineGrainedMT(int loadLat, int storeLat, int switchPen, int threadsNum) : core(loadLat, storeLat, switchPen,
+                                                                                   threadsNum) {}
 
     // return which thread turn to run (Round Robin)
     // blockedMT - switch on event
@@ -195,7 +200,7 @@ public:
         // find next ready thread
         for(int i = 1; i <= threadsNum; i++){
             int tmpThreadID = (curThread + 1)% threadsNum ;
-            if(threadVec[tmpThreadID].isReady){
+            if(threadVec[tmpThreadID].isReady(cycle)){
                 // do context switch
                 curThread = tmpThreadID;
                 return curThread;
@@ -224,7 +229,7 @@ void CORE_BlockedMT() {
     int storeLatency = SIM_GetStoreLat();
     int threadsNum = SIM_GetThreadsNum();
     int switchCycles = SIM_GetSwitchCycles();
-    pBlockedMT = new blockedMT(); // TODO: create c'tor
+    pBlockedMT = new blockedMT(loadLatency, storeLatency, switchCycles, threadsNum); // TODO: create c'tor
     int cycle = 0;
     while(!pBlockedMT->isFinished()){
         pBlockedMT->execute(cycle);
@@ -240,7 +245,7 @@ void CORE_FinegrainedMT() {
     int storeLatency = SIM_GetStoreLat();
     int threadsNum = SIM_GetThreadsNum();
     int switchCycles = SIM_GetSwitchCycles();
-    pFineGrainedMT = new fineGrainedMT(); // TODO: create c'tor
+    pFineGrainedMT = new fineGrainedMT(loadLatency, storeLatency, switchCycles, threadsNum); // TODO: create c'tor
     int cycle = 0;
     while(!pFineGrainedMT->isFinished()){
         pFineGrainedMT->execute(cycle);
@@ -252,6 +257,7 @@ void CORE_FinegrainedMT() {
 }
 
 double CORE_BlockedMT_CPI(){
+
 	return 0;
 }
 
