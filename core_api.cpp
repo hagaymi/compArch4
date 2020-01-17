@@ -256,13 +256,15 @@ void CORE_FinegrainedMT() {
 }
 
 double CORE_BlockedMT_CPI(){
-
-	return 0;
+    double cycles = (double)pBlockedMT->cycle;
+    double instructions = (double)pBlockedMT->instructionCount;
+	return cycles/instructions;
 }
 
 double CORE_FinegrainedMT_CPI(){
-	return 0;
-}
+    double cycles = (double)pFineGrainedMT->cycle;
+    double instructions = (double)pFineGrainedMT->instructionCount;
+    return cycles/instructions;}
 
 void CORE_BlockedMT_CTX(tcontext* context, int threadid) {
     context = pBlockedMT->threadVec[threadid].regsTable;
