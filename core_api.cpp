@@ -60,12 +60,10 @@ public:
     // look what is the next instruction and call the relevant function and update the return value in memory update the pc
     threadState execute(int currCycle){
        // int opc;
-        //cout << "id: " << id << endl;
         SIM_MemInstRead(pc,  &instDest, id);
-       // cout << "id: " << id << endl;
+       //
         pc = (uint32_t) (pc + 1); //TODO: make sure the pc is the correct way
-       // cout << "id: " << id << endl;
-        //opc = ;
+
         switch (instDest.opcode) {
             case CMD_NOP: // NOP
                 break;
@@ -89,7 +87,6 @@ public:
                 state = FINISHED;
                 return FINISHED;
         }
-       // cout << "id end: " << id << endl;
         return RUNNING;
     }
 
