@@ -250,7 +250,10 @@ public:
     // return which thread turn to run (Round Robin)
     // blockedMT - switch on event
     int getThreadTORun(){
-
+        if(cycle == 0){
+            // for first execution
+            return 0;
+        }
         // find next ready thread
         for(int i = 1; i <= threadsNum; i++){
             int tmpThreadID = (curThread + i)% threadsNum ;
@@ -270,20 +273,15 @@ public:
             return; // have waiting penalty - not ready execute
         }
         int threadId = getThreadTORun();
+
         if(threadId == -1){
             //none of the threads can run - idle
             return;
         }
-        else if(threadId != curThread){ // TODO: make sure in fineGrained switchPenalty=0
-            // context switch - penalty
-            if(switchCyclesPenalty > 0){
-                // surely can't run in this cycle
-                cpuReadyCycle = cycle + switchCyclesPenalty;
-                return;
-            }
-        }
+//
         else {
             // current thread continue or no context switch penalty
+            curThread = threadId; //TODO: verify the right place to update current thread (for idle cases)
             int status = threadVec[threadId].execute(cycle); // TODO: check if need to get output (waiting penalty...)
             if (status == FINISHED){
                 finishedThreads++;
@@ -359,12 +357,4 @@ void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
 
 
 
-//
-//class roundRobin{
-//private:
-//    int threadNum;
-//
-//public:
-//    roundRobin(int threadNum): threadNum(threadNum){};
-//    int getNextThread;
-//};
+
