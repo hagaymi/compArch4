@@ -6,10 +6,31 @@
 #include <stdio.h>
 #include <vector>
 #include <stdint.h>
+#include <iostream>
+
+#define DEBUG 0
+void log(const char * msg){
+    if(DEBUG){
+        std::cout << msg << std::endl;
+    }
+}
+
 
 typedef enum {ADD, SUB} op;
 typedef enum {RUNNING, FINISHED} threadState;
 using std::vector;
+
+void init(tcontext r){
+    for(int i=0; i< REGS_COUNT; i++){
+        r.reg[i]=0;
+    }
+}
+
+void copyArray(tcontext* dest, tcontext* src){
+    for(int i=0; i < REGS_COUNT; i++){
+        dest->reg[i] = src->reg[i];
+    }
+}
 
 class thread{
 public:
@@ -17,19 +38,24 @@ public:
     int loadPenalty;
     int storePenalty;
     int readyCycle;
-    tcontext *regsTable{};
+    threadState state;
+    tcontext regsTable{};
     uint32_t pc;
     Instruction instDest{};
-    thread(int id, int loadPenalty, int storePenalty, uint32_t init_pc):id(id), loadPenalty(loadPenalty), storePenalty(storePenalty),readyCycle(0), pc(init_pc){} //TODO: make sure regsTable doesn't need initialization
+    thread(int id, int loadPenalty, int storePenalty, uint32_t init_pc):id(id), loadPenalty(loadPenalty), storePenalty(storePenalty),readyCycle(-1), state(RUNNING),pc(init_pc){
+        init(regsTable);
+    } //TODO: make sure regsTable doesn't need initialization
 
     bool isReady(int currCycle){
+        if(state == FINISHED)
+            return false;
         return currCycle > readyCycle;
     }
     // look what is the next instruction and call the relevant function and update the return value in memory update the pc
     threadState execute(int currCycle){
         int opc;
         SIM_MemInstRead(pc,  &instDest, id);
-        pc = pc + 4; //TODO: make sure the pc is the correct way
+        pc = pc + 1; //TODO: make sure the pc is the correct way
         opc = instDest.opcode;
         switch (opc) {
             case CMD_NOP: // NOP
@@ -51,6 +77,7 @@ public:
                 readyCycle = currCycle + storePenalty;
                 break;
             case CMD_HALT:
+                state = FINISHED;
                 return FINISHED;
         }
         return RUNNING;
@@ -63,7 +90,7 @@ public:
     //implement add and update regs
     void addOrSubOrI(int destReg, int src1Reg, int src2Reg, op operation, bool imm){
         int val, src1, src2;
-        src1 = regsTable->reg[src1Reg];
+        src1 = regsTable.reg[src1Reg];
         src2 =  setSrc2(src2Reg, imm);
 
         //choose ADD or SUB
@@ -71,24 +98,24 @@ public:
             val = src1 + src2;
         else val = src1 -src2;
         //update regs value
-        regsTable->reg[destReg] = val;
+        regsTable.reg[destReg] = val;
     }
 
     //implement load and update regs
     void load(int destReg, int src1Reg, int src2Reg, bool imm){
         int val, src1, src2;
-        src1 = regsTable->reg[src1Reg];
+        src1 = regsTable.reg[src1Reg];
         src2 =  setSrc2(src2Reg, imm);
-        regsTable->reg[destReg] = regsTable->reg[src1 +  src2];
+        int res = SIM_MemDataRead(src1+src2, &regsTable.reg[destReg]);
     }
 
     //implement store
     void store(int destReg, int src1Reg, int src2Reg, bool imm){
         int val, src1, src2, dest;
-        src1 = regsTable->reg[src1Reg];
+        src1 = regsTable.reg[src1Reg];
         src2 =  setSrc2(src2Reg, imm);
-        dest = regsTable->reg[destReg];
-        regsTable->reg[dest+src2] = regsTable->reg[src1];
+        dest = regsTable.reg[destReg];
+        SIM_MemDataWrite(dest+src2, src1);
     }
 };
 
@@ -111,7 +138,7 @@ public:
     int instructionCount;
     int curThread; // current running thread. when changed - have to wait penalty
     //int activeThreadsNum;
-    int finishedThreads;
+    int finishedThreads; // counts finished threads
     //bool finished;
     vector<thread> threadVec;
 
@@ -119,6 +146,7 @@ public:
     loadLatency(loadLat), storeLatency(storeLat), threadsNum(threadsNum),
     switchCyclesPenalty(switchPen), cycle(0), cpuReadyCycle(0), instructionCount(0),
     curThread(0), finishedThreads(0){
+        threadVec.reserve(threadsNum);
         for(int i = 0; i < threadsNum; i++){
             threadVec[i] = thread(i, loadLatency, storeLatency, 0);
         }
@@ -127,7 +155,7 @@ public:
     bool isFinished(){
         return finishedThreads == threadsNum;
     }
-    virtual int getThreadTORun();
+    virtual int getThreadTORun(){};
     void execute(int curCycle){
         cycle = curCycle;
         if(cycle < cpuReadyCycle){
@@ -138,7 +166,7 @@ public:
             //none of the threads can run - idle
             return;
         }
-        else if(threadId != curThread){
+        else if(threadId != curThread){ // TODO: make sure in fineGrained switchPenalty=0
             // context switch - penalty
             if(switchCyclesPenalty > 0){
                 // surely can't run in this cycle
@@ -174,17 +202,44 @@ public:
         }
         // find next ready thread
         for(int i = 1; i < threadsNum; i++){
-            int tmpThreadID = (curThread + 1)% threadsNum ;
+            int tmpThreadID = (curThread + i)% threadsNum ;
             if(threadVec[tmpThreadID].isReady(cycle)){ // TODO: need to replace in thread's method
                 // do context switch
-                curThread = tmpThreadID;
-                return curThread;
+                //curThread = tmpThreadID;
+                return tmpThreadID;
             }
         }
         // none of the threads can run - must Idle
         return -1;
     }
-
+    void execute(int curCycle){
+        cycle = curCycle;
+        if(cycle < cpuReadyCycle){
+            return; // have waiting penalty - not ready execute
+        }
+        int threadId = getThreadTORun();
+        if(threadId == -1){
+            //none of the threads can run - idle
+            return;
+        }
+        else if(threadId != curThread){ // TODO: make sure in fineGrained switchPenalty=0
+            // context switch - penalty
+            if(switchCyclesPenalty > 0){
+                // surely can't run in this cycle
+                cpuReadyCycle = cycle + switchCyclesPenalty;
+                curThread = threadId;
+                return;
+            }
+        }
+        else {
+            // current thread continue or no context switch penalty
+            int status = threadVec[threadId].execute(cycle); // TODO: check if need to get output (waiting penalty...)
+            if (status == FINISHED){
+                finishedThreads++;
+            }
+            instructionCount++; // TODO: can be replaced with counting all the instructions from memory
+        }
+    }
 };
 class fineGrainedMT: public core{
 
@@ -198,15 +253,43 @@ public:
 
         // find next ready thread
         for(int i = 1; i <= threadsNum; i++){
-            int tmpThreadID = (curThread + 1)% threadsNum ;
+            int tmpThreadID = (curThread + i)% threadsNum ;
             if(threadVec[tmpThreadID].isReady(cycle)){
                 // do context switch
-                curThread = tmpThreadID;
-                return curThread;
+                //curThread = tmpThreadID;
+                return tmpThreadID;
             }
         }
         // none of the threads can run - must Idle
         return -1;
+    }
+
+    void execute(int curCycle){
+        cycle = curCycle;
+        if(cycle < cpuReadyCycle){
+            return; // have waiting penalty - not ready execute
+        }
+        int threadId = getThreadTORun();
+        if(threadId == -1){
+            //none of the threads can run - idle
+            return;
+        }
+        else if(threadId != curThread){ // TODO: make sure in fineGrained switchPenalty=0
+            // context switch - penalty
+            if(switchCyclesPenalty > 0){
+                // surely can't run in this cycle
+                cpuReadyCycle = cycle + switchCyclesPenalty;
+                return;
+            }
+        }
+        else {
+            // current thread continue or no context switch penalty
+            int status = threadVec[threadId].execute(cycle); // TODO: check if need to get output (waiting penalty...)
+            if (status == FINISHED){
+                finishedThreads++;
+            }
+            instructionCount++; // TODO: can be replaced with counting all the instructions from memory
+        }
     }
 
 
@@ -256,23 +339,24 @@ void CORE_FinegrainedMT() {
 }
 
 double CORE_BlockedMT_CPI(){
-    double cycles = (double)pBlockedMT->cycle;
+    double cycles = (double)pBlockedMT->cycle + 1;
     double instructions = (double)pBlockedMT->instructionCount;
 	return cycles/instructions;
 }
 
 double CORE_FinegrainedMT_CPI(){
-    double cycles = (double)pFineGrainedMT->cycle;
+    double cycles = (double)pFineGrainedMT->cycle + 1;
     double instructions = (double)pFineGrainedMT->instructionCount;
     return cycles/instructions;}
 
 void CORE_BlockedMT_CTX(tcontext* context, int threadid) {
-    context = pBlockedMT->threadVec[threadid].regsTable;
+    copyArray(&context[threadid],&pBlockedMT->threadVec[threadid].regsTable);
 }
 
 void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
-    context = pFineGrainedMT->threadVec[threadid].regsTable;
+    copyArray(&context[threadid],&pFineGrainedMT->threadVec[threadid].regsTable);
 }
+
 
 
 //
