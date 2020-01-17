@@ -17,7 +17,7 @@ public:
     int loadPenalty;
     int storePenalty;
     int readyCycle;
-    tcontext regsTable{};
+    tcontext *regsTable{};
     uint32_t pc;
     Instruction instDest{};
     thread(int id, int loadPenalty, int storePenalty, uint32_t init_pc):id(id), loadPenalty(loadPenalty), storePenalty(storePenalty),readyCycle(0), pc(init_pc){} //TODO: make sure regsTable doesn't need initialization
@@ -63,7 +63,7 @@ public:
     //implement add and update regs
     void addOrSubOrI(int destReg, int src1Reg, int src2Reg, op operation, bool imm){
         int val, src1, src2;
-        src1 = regsTable.reg[src1Reg];
+        src1 = regsTable->reg[src1Reg];
         src2 =  setSrc2(src2Reg, imm);
 
         //choose ADD or SUB
@@ -71,24 +71,24 @@ public:
             val = src1 + src2;
         else val = src1 -src2;
         //update regs value
-        regsTable.reg[destReg] = val;
+        regsTable->reg[destReg] = val;
     }
 
     //implement load and update regs
     void load(int destReg, int src1Reg, int src2Reg, bool imm){
         int val, src1, src2;
-        src1 = regsTable.reg[src1Reg];
+        src1 = regsTable->reg[src1Reg];
         src2 =  setSrc2(src2Reg, imm);
-        regsTable.reg[destReg] = regsTable.reg[src1 +  src2];
+        regsTable->reg[destReg] = regsTable->reg[src1 +  src2];
     }
 
     //implement store
     void store(int destReg, int src1Reg, int src2Reg, bool imm){
         int val, src1, src2, dest;
-        src1 = regsTable.reg[src1Reg];
+        src1 = regsTable->reg[src1Reg];
         src2 =  setSrc2(src2Reg, imm);
-        dest = regsTable.reg[destReg];
-        regsTable.reg[dest+src2] = regsTable.reg[src1];
+        dest = regsTable->reg[destReg];
+        regsTable->reg[dest+src2] = regsTable->reg[src1];
     }
 };
 
@@ -100,7 +100,7 @@ public:
  * virtual class for CPUs
  * */
 class core{
-protected:
+public:
     int loadLatency;
     int storeLatency;
     int threadsNum;
@@ -115,7 +115,6 @@ protected:
     //bool finished;
     vector<thread> threadVec;
 
-public:
     core(int loadLat, int storeLat, int switchPen, int threadsNum):
     loadLatency(loadLat), storeLatency(storeLat), threadsNum(threadsNum),
     switchCyclesPenalty(switchPen), cycle(0), cpuReadyCycle(0), instructionCount(0),
@@ -266,9 +265,11 @@ double CORE_FinegrainedMT_CPI(){
 }
 
 void CORE_BlockedMT_CTX(tcontext* context, int threadid) {
+    context = pBlockedMT->threadVec[threadid].regsTable;
 }
 
 void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
+    context = pFineGrainedMT->threadVec[threadid].regsTable;
 }
 
 
