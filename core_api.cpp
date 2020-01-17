@@ -8,6 +8,9 @@
 #include <stdint.h>
 #include <iostream>
 
+
+using std::cout;
+using std::endl;
 #define DEBUG 0
 void log(const char * msg){
     if(DEBUG){
@@ -33,15 +36,18 @@ void copyArray(tcontext* dest, tcontext* src){
 }
 
 class thread{
-public:
+private:
     int id;
     int loadPenalty;
     int storePenalty;
     int readyCycle;
     threadState state;
-    tcontext regsTable{};
+
     uint32_t pc;
     Instruction instDest{};
+public:
+    tcontext regsTable{};
+public:
     thread(int id, int loadPenalty, int storePenalty, uint32_t init_pc):id(id), loadPenalty(loadPenalty), storePenalty(storePenalty),readyCycle(-1), state(RUNNING),pc(init_pc){
         init(regsTable);
     } //TODO: make sure regsTable doesn't need initialization
@@ -53,11 +59,14 @@ public:
     }
     // look what is the next instruction and call the relevant function and update the return value in memory update the pc
     threadState execute(int currCycle){
-        int opc;
+       // int opc;
+        //cout << "id: " << id << endl;
         SIM_MemInstRead(pc,  &instDest, id);
-        pc = pc + 1; //TODO: make sure the pc is the correct way
-        opc = instDest.opcode;
-        switch (opc) {
+       // cout << "id: " << id << endl;
+        pc = (uint32_t) (pc + 1); //TODO: make sure the pc is the correct way
+       // cout << "id: " << id << endl;
+        //opc = ;
+        switch (instDest.opcode) {
             case CMD_NOP: // NOP
                 break;
             case CMD_SUB:
@@ -80,6 +89,7 @@ public:
                 state = FINISHED;
                 return FINISHED;
         }
+       // cout << "id end: " << id << endl;
         return RUNNING;
     }
 
@@ -106,7 +116,12 @@ public:
         int val, src1, src2;
         src1 = regsTable.reg[src1Reg];
         src2 =  setSrc2(src2Reg, imm);
-        int res = SIM_MemDataRead(src1+src2, &regsTable.reg[destReg]);
+        int res = SIM_MemDataRead((uint32_t)(src1+src2), &(regsTable.reg[destReg]));
+        if(DEBUG){
+            cout << "thread id: " << id << endl;
+            cout << "load: " << "dst reg: " << destReg << " memory addr:  " << (uint32_t)(src1+src2) << endl;
+            cout << "       " << " value: " << regsTable.reg[destReg] << endl;
+        }
     }
 
     //implement store
@@ -115,7 +130,11 @@ public:
         src1 = regsTable.reg[src1Reg];
         src2 =  setSrc2(src2Reg, imm);
         dest = regsTable.reg[destReg];
-        SIM_MemDataWrite(dest+src2, src1);
+        SIM_MemDataWrite((uint32_t)(dest+src2), src1);
+        if(DEBUG){
+            cout << "thread id: " << id << endl;
+            cout << "store: " <<  "memory addr: " <<(uint32_t)(dest+src2) << " value: " << src1 << endl;
+        }
     }
 };
 
@@ -233,6 +252,8 @@ public:
         }
         else {
             // current thread continue or no context switch penalty
+            if(threadId < 0 || threadId >= threadsNum )
+                throw ("illegal thread ID ");
             int status = threadVec[threadId].execute(cycle); // TODO: check if need to get output (waiting penalty...)
             if (status == FINISHED){
                 finishedThreads++;
