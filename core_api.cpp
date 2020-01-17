@@ -100,7 +100,7 @@ public:
  * virtual class for CPUs
  * */
 class core{
-protected:
+public:
     int loadLatency;
     int storeLatency;
     int threadsNum;
@@ -115,7 +115,6 @@ protected:
     //bool finished;
     vector<thread> threadVec;
 
-public:
     core(int loadLat, int storeLat, int switchPen, int threadsNum):
     loadLatency(loadLat), storeLatency(storeLat), threadsNum(threadsNum),
     switchCyclesPenalty(switchPen), cycle(0), cpuReadyCycle(0), instructionCount(0),
@@ -257,13 +256,15 @@ void CORE_FinegrainedMT() {
 }
 
 double CORE_BlockedMT_CPI(){
-
-	return 0;
+    double cycles = (double)pBlockedMT->cycle;
+    double instructions = (double)pBlockedMT->instructionCount;
+	return cycles/instructions;
 }
 
 double CORE_FinegrainedMT_CPI(){
-	return 0;
-}
+    double cycles = (double)pFineGrainedMT->cycle;
+    double instructions = (double)pFineGrainedMT->instructionCount;
+    return cycles/instructions;}
 
 void CORE_BlockedMT_CTX(tcontext* context, int threadid) {
 }
