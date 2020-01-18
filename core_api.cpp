@@ -199,11 +199,16 @@ public:
             threadVec[i] = thread(i, loadLatency, storeLatency, 0);
         }
     }
-
+    ///
+    /// \return if cpu fished with all threads
     bool isFinished(){
         return finishedThreads == threadsNum;
     }
+    /// decide which thread to run
+    /// \return  thread ID to execute
     virtual int getThreadTORun(){};
+    /// executes current cycle
+    /// \param curCycle
     virtual void execute(int curCycle){};
 
 };
