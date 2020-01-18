@@ -40,8 +40,8 @@ void copyArray(tcontext* dest, tcontext* src){
     }
 }
 
-///class of thread
-/// holds thread context and
+/// class of thread
+/// holds thread context and do instructions executions
 class thread{
 private:
     int id;
@@ -55,17 +55,28 @@ private:
 public:
     tcontext regsTable;
 public:
+    /// c'tor
+    /// \param id
+    /// \param loadPenalty
+    /// \param storePenalty
+    /// \param init_pc
     thread(int id, int loadPenalty, int storePenalty, uint32_t init_pc):id(id), loadPenalty(loadPenalty),
             storePenalty(storePenalty),readyCycle(-1), state(RUNNING),pc(init_pc), regsTable(){
         init(regsTable);
     } //TODO: make sure regsTable doesn't need initialization
 
+    /// check if thread is ready for execution
+    /// \param currCycle  current cycle
+    /// \return ture / false (can thread run in current cycle)
     bool isReady(int currCycle){
         if(state == FINISHED)
             return false;
         return currCycle > readyCycle;
     }
-    // look what is the next instruction and call the relevant function and update the return value in memory update the pc
+
+    /// look what is the next instruction and call the relevant function and update the return value in memory update the pc
+    /// \param currCycle
+    /// \return if thread is finished or not
     threadState execute(int currCycle){
        // int opc;
         Instruction instDest;
@@ -99,11 +110,19 @@ public:
         return RUNNING;
     }
 
-    //choose imm or register val
+    ///choose imm or register val
+    /// \param regAddOrImm
+    /// \param isImm
+    /// \return
     int setSrc2(int regAddOrImm, bool isImm){
         return (isImm)? regAddOrImm : regsTable.reg[regAddOrImm];
     }
-    //implement add and update regs
+    ///implement add and update regs
+    /// \param destReg
+    /// \param src1Reg
+    /// \param src2Reg
+    /// \param operation
+    /// \param imm
     void addOrSubOrI(int destReg, int src1Reg, int src2Reg, op operation, bool imm){
         int val, src1, src2;
         src1 = regsTable.reg[src1Reg];
@@ -117,7 +136,11 @@ public:
         regsTable.reg[destReg] = val;
     }
 
-    //implement load and update regs
+    /// implement load and update regs
+    /// \param destReg
+    /// \param src1Reg
+    /// \param src2Reg
+    /// \param imm
     void load(int destReg, int src1Reg, int src2Reg, bool imm){
         int val, src1, src2;
         src1 = regsTable.reg[src1Reg];
@@ -181,33 +204,7 @@ public:
         return finishedThreads == threadsNum;
     }
     virtual int getThreadTORun(){};
-    void execute(int curCycle){
-        cycle = curCycle;
-        if(cycle < cpuReadyCycle){
-            return; // have waiting penalty - not ready execute
-        }
-        int threadId = getThreadTORun();
-        if(threadId == -1){
-            //none of the threads can run - idle
-            return;
-        }
-        else if(threadId != curThread){ // TODO: make sure in fineGrained switchPenalty=0
-            // context switch - penalty
-            if(switchCyclesPenalty > 0){
-                // surely can't run in this cycle
-                cpuReadyCycle = cycle + switchCyclesPenalty;
-                return;
-            }
-        }
-        else {
-            // current thread continue or no context switch penalty
-            int status = threadVec[threadId].execute(cycle); // TODO: check if need to get output (waiting penalty...)
-            if (status == FINISHED){
-                finishedThreads++;
-            }
-            instructionCount++; // TODO: can be replaced with counting all the instructions from memory
-        }
-    }
+    virtual void execute(int curCycle){};
 
 };
 
