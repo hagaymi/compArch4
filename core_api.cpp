@@ -23,18 +23,25 @@ typedef enum {ADD, SUB} op;
 typedef enum {RUNNING, FINISHED} threadState;
 using std::vector;
 
+/// initial tcontext struct - regs = {0}
+/// \param r tcontext instance to initiate
 void init(tcontext r){
     for(int i=0; i< REGS_COUNT; i++){
         r.reg[i]=0;
     }
 }
 
+/// copys registers of contest
+/// \param dest dest context
+/// \param src source context
 void copyArray(tcontext* dest, tcontext* src){
     for(int i=0; i < REGS_COUNT; i++){
         dest->reg[i] = src->reg[i];
     }
 }
 
+///class of thread
+/// holds thread context and
 class thread{
 private:
     int id;
@@ -44,11 +51,12 @@ private:
     threadState state;
 
     uint32_t pc;
-    Instruction instDest{};
+   //
 public:
-    tcontext regsTable{};
+    tcontext regsTable;
 public:
-    thread(int id, int loadPenalty, int storePenalty, uint32_t init_pc):id(id), loadPenalty(loadPenalty), storePenalty(storePenalty),readyCycle(-1), state(RUNNING),pc(init_pc){
+    thread(int id, int loadPenalty, int storePenalty, uint32_t init_pc):id(id), loadPenalty(loadPenalty),
+            storePenalty(storePenalty),readyCycle(-1), state(RUNNING),pc(init_pc), regsTable(){
         init(regsTable);
     } //TODO: make sure regsTable doesn't need initialization
 
@@ -60,6 +68,7 @@ public:
     // look what is the next instruction and call the relevant function and update the return value in memory update the pc
     threadState execute(int currCycle){
        // int opc;
+        Instruction instDest;
         SIM_MemInstRead(pc,  &instDest, id);
        //
         pc = (uint32_t) (pc + 1); //TODO: make sure the pc is the correct way
